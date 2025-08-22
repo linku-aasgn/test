@@ -38,6 +38,37 @@ app.get('/step1', async (req, res) => {
     }
 })
 
+app.get("/step2", async (req, res) => {
+  try {
+    const response = await axios.get("http://interview.surya-digital.in/get-electronics");
+    let products = response.data;
+
+    const { release_date_start, release_date_end } = req.query;
+
+    // Parse dates
+    let startDate = release_date_start ? new Date(release_date_start) : null;
+    let endDate = release_date_end ? new Date(release_date_end) : null;
+
+    // Validate date formats
+    if ((release_date_start && isNaN(startDate)) || (release_date_end && isNaN(endDate))) {
+      return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
+    }
+
+    // Filter by releaseDate (from API response)
+    if (startDate) {
+      products = products.filter(p => new Date(p.releaseDate) >= startDate);
+    }
+    if (endDate) {
+      products = products.filter(p => new Date(p.releaseDate) <= endDate);
+    }
+
+    res.json({ products });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
