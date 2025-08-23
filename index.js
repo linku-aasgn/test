@@ -1,6 +1,14 @@
 import express from 'express';
 import axios from 'axios';
+import cors from 'cors';
+import connectDB from "./db.js";
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+    origin: '*',
+    credentials: true,
+}))
 const port = 5000;
 app.get('/', (req, res) => {
     res.send('Hello World!');
@@ -62,7 +70,15 @@ app.get("/step2", async (req, res) => {
   }
 });
 
-
-app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
+connectDB()
+.then(() => {
+    app.listen(port, () => {
+        console.log(`Server is running on http://localhost:${port}`);
+    }
+    );
+}).catch(err => {
+    console.error("Failed to connect to the database", err);
 });
+
+
+
