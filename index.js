@@ -3,6 +3,17 @@ import axios from 'axios';
 import cors from 'cors';
 import connectDB from "./db.js";
 import dotenv from 'dotenv';
+import Resend from 'resend';
+import jwt from 'jsonwebtoken';
+import VerificationEmailTemplate from './emails/verificationEmailTemplate.js';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const JWT_SECRET = process.env.JWT_SECRET;
+const OTP_TTL_SECONDS = process.env.OTP_TTL_SECONDS;
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 dotenv.config({
   path: './.env'
 });
@@ -10,8 +21,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-    origin: '*',
-    credentials: true,
+  origin: '*',
+  credentials: true,
 }))
 const port = 5000;
 
@@ -19,39 +30,39 @@ const port = 5000;
 
 
 app.get('/', (req, res) => {
-    res.send('Hello World!');
+  res.send('Hello World!');
 })
 
 app.get('/step1', async (req, res) => {
-    try {
-        const response = await axios.get("http://interview.surya-digital.in/get-electronics");
-        const products = response.data;
-        const cleanedProducts = products.map(item => ({
-            product_id: item?.productId ?? null,
-            product_name: item?.productName ?? null,
-            brand_name: item?.brandName ?? null,
-            category_name: item?.category ?? null,
-            description_text: item?.description ?? null,
-            price: item?.price ?? null,
-            currency: item?.currency ?? null,
-            processor: item?.processor ?? null,
-            memory: item?.memory ?? null,
-            release_date: item?.releaseDate ?? null,
-            average_rating: item?.averageRating ?? null,
-            rating_count: item?.ratingCount ?? null,
-        }));
-        const validProducts = cleanedProducts.filter(
-            p => p.product_id !== null && p.product_name !== null
-        );
+  try {
+    const response = await axios.get("http://interview.surya-digital.in/get-electronics");
+    const products = response.data;
+    const cleanedProducts = products.map(item => ({
+      product_id: item?.productId ?? null,
+      product_name: item?.productName ?? null,
+      brand_name: item?.brandName ?? null,
+      category_name: item?.category ?? null,
+      description_text: item?.description ?? null,
+      price: item?.price ?? null,
+      currency: item?.currency ?? null,
+      processor: item?.processor ?? null,
+      memory: item?.memory ?? null,
+      release_date: item?.releaseDate ?? null,
+      average_rating: item?.averageRating ?? null,
+      rating_count: item?.ratingCount ?? null,
+    }));
+    const validProducts = cleanedProducts.filter(
+      p => p.product_id !== null && p.product_name !== null
+    );
 
-        res.json(validProducts);
+    res.json(validProducts);
 
 
-    }
-    catch (err) {
-        console.error(err);
-        res.status(500).send('Internal Server Error');
-    }
+  }
+  catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
+  }
 })
 
 app.get("/step2", async (req, res) => {
@@ -77,15 +88,65 @@ app.get("/step2", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
+
+app.post("/send-otp", async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: "Name and email are required" });
+  }
+
+  const otp = generateOtp();
+  const token = jwt.sign({ email, otp }, JWT_SECRET, { expiresIn: OTP_TTL_SECONDS });
+
+  try {
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: email,
+      subject: "Your verification OTP",
+      react: <VerificationEmailTemplate name={name} otp={otp} />,
+    });
+
+    return res.json({
+      message: "OTP sent to email. Please verify within 30 minutes.",
+      token,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to send OTP email" });
+  }
+});
+
+
+app.post("/verify-otp", (req, res) => {
+  const { email, token, otp } = req.body;
+  if (!token || !otp || !email) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.email !== email || decoded.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    return res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ error: "Invalid or expired token" });
+  }
+});
+
+
+
 connectDB()
-.then(() => {
+  .then(() => {
     app.listen(port, () => {
-        console.log(`Server is running on http://localhost:${port}`);
+      console.log(`Server is running on http://localhost:${port}`);
     }
     );
-}).catch(err => {
+  }).catch(err => {
     console.error("Failed to connect to the database", err);
-});
+  });
 
 
 
