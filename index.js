@@ -2,6 +2,10 @@ import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import connectDB from "./db.js";
+import dotenv from 'dotenv';
+dotenv.config({
+  path: './.env'
+});
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -10,6 +14,10 @@ app.use(cors({
     credentials: true,
 }))
 const port = 5000;
+
+
+
+
 app.get('/', (req, res) => {
     res.send('Hello World!');
 })
@@ -69,7 +77,6 @@ app.get("/step2", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch products" });
   }
 });
-
 connectDB()
 .then(() => {
     app.listen(port, () => {
@@ -79,6 +86,8 @@ connectDB()
 }).catch(err => {
     console.error("Failed to connect to the database", err);
 });
+
+
 
 
 
