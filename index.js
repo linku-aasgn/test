@@ -5,9 +5,7 @@ import connectDB from "./db.js";
 import dotenv from 'dotenv';
 import Resend from 'resend';
 import jwt from 'jsonwebtoken';
-import VerificationEmailTemplate from './emails/verificationEmailTemplate.js';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendVerificationEmail } from './helpers/sendVerificationEmail.ts';
 const JWT_SECRET = process.env.JWT_SECRET;
 const OTP_TTL_SECONDS = process.env.OTP_TTL_SECONDS;
 function generateOtp() {
@@ -98,22 +96,14 @@ app.post("/send-otp", async (req, res) => {
   const otp = generateOtp();
   const token = jwt.sign({ email, otp }, JWT_SECRET, { expiresIn: OTP_TTL_SECONDS });
 
-  try {
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: email,
-      subject: "Your verification OTP",
-      react: <VerificationEmailTemplate name={name} otp={otp} />,
-    });
-
-    return res.json({
-      message: "OTP sent to email. Please verify within 30 minutes.",
-      token,
-    });
-  } catch (err) {
+  sendVerificationEmail(name, email, otp).then(() => {
+    res.json({ message: "OTP sent successfully", token });
+  }).catch(err => {
     console.error(err);
-    return res.status(500).json({ error: "Failed to send OTP email" });
-  }
+    res.status(500).json({ error: "Failed to send OTP email" });
+  });
+
+
 });
 
 
