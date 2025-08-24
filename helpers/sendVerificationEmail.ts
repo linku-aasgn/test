@@ -10,6 +10,7 @@ export async function sendVerificationEmail(email: string, name: string, otp: st
         react: verificationEmailTemplate({ name, otp }),
 
     })
+    console.log("Verification email sent:", data);
 }
 catch (error) {
     console.log("Error sending verification email:", error);
