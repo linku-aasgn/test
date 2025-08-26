@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import verificationEmailTemplate from "../emails/verificationEmailTemplate";    
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend('${process.env.RESEND_API_KEY}');
 export async function sendVerificationEmail(email: string, name: string, otp: string) {
   try {
     const data = await resend.emails.send({
